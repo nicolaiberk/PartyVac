@@ -1,0 +1,334 @@
+---
+title: "Leading by Example?"
+subtitle: "How Elite Behaviour affects Individual Vaccination Decisions"
+author: "Nicolai Berk"
+institute: "Humboldt Universität Berlin"
+date: "`r Sys.Date()`"
+output:
+  xaringan::moon_reader:
+    seal: false
+    css: xaringan-themer.css
+    lib_dir: libs
+    nature:
+      highlightStyle: github
+      highlightLines: true
+      countIncrementalSlides: false
+      ratio: 16:9
+    includes:
+      after_body: insert-logo.html
+---
+
+```{r xaringan-themer, include=FALSE, warning=FALSE}
+library(xaringanthemer)
+style_mono_accent(
+  base_color = "#004A95", background_color = "#bfbfbf",
+  base_font_size = "36px",
+  header_h1_font_size = "1.3rem",
+  header_h2_font_size = "1.2rem",
+  header_h3_font_size = "1.05rem",
+  header_font_google = google_font("Lato", '700'),
+  text_font_google   = google_font("Lato", "400"),
+  code_font_google   = google_font("Fira Mono"),
+  footnote_font_size = "0.75rem"
+)
+
+
+```
+
+```{r, load_refs, include=FALSE, cache=FALSE}
+library(RefManageR)
+BibOptions(check.entries = FALSE, 
+           bib.style = "authoryear",
+           cite.style = "authoryear",
+           style = "markdown",
+           hyperlink = FALSE,
+           max.names = 2, 
+           longnamesfirst = F,
+           dashed = FALSE)
+myBib <- ReadBib("C:/Users/nicol/Dropbox/Studium/BibTex/PhD.bib", check = FALSE)
+```
+
+```{r setup, include=FALSE}
+
+knitr::opts_chunk$set(
+  echo = FALSE, 
+  message = F, 
+  warning = F, 
+  cache = F, 
+  out.width="90%", 
+  fig.height=8, 
+  fig.width=15, 
+  fig.align='center', 
+  eval = T, 
+  dev = "svg"
+  )
+# knitr::opts_knit$set(root.dir = 'C:/Users/nicol/Dropbox/PhD/Papers/Bild/github/bild')
+
+library(tidyverse)
+library(dplyr)
+library(data.table)
+library(fixest)
+library(lubridate)
+library(patchwork)
+library(here)
+
+# load self-made functions
+for (filename in list.files(here("code/functions"))){
+  source(here(paste0('code/functions/', filename)), encoding = "UTF-8")
+}
+
+
+```
+
+
+
+
+
+class: inverse, center, middle
+
+# Leading by Example?
+
+### How Elite Behaviour affects Individual Vaccination Decisions
+
+#### Nicolai Berk<sup>*</sup>
+
+Presentation prepared for the Political Behaviour Workshop at the University of Aarhus
+
+`r Sys.Date()`
+
+.left[.footnote[<sup>*</sup> Dynamics RTG & Humboldt Universität Berlin]]
+
+
+---
+
+class: inverse, center, middle
+
+# What are the limits of cue taking?
+
+---
+
+## Cue Taking
+
+"cues—information about what positions political parties take on policy
+issues" (Slothuus & Bisgaard 2021a, 1)
+
+- Cues are powerful determinants of reported political attitudes (Slothuus & Bisgaard 2021a),
+- even when this goes against personal stakes (Slothuus & Bisgaard 2021b).
+
+--
+
+### But does this translate into behaviour as well?
+
+
+---
+
+## Partisanship as a "Perceptual Screen"
+
+- builds on evidence of partisan differences in reported factual beliefs.
+- Paying people to give better answers mitigates *some* bias, but not all of it (Prior, Sood & Khanna 2015).
+- **PS hypothesis**: differences are caused by differences in **perception of reality** (Campbell 1960; Green & Huber 2009).
+
+--
+
+### Can strong cues alter factual beliefs?
+
+(and what about realms beyond the economy?)
+
+---
+
+<br>
+
+## Vaccination Decisions
+
+- Behavioral data.
+- Highly tangible issue.
+- Costly behavior.
+- Clear and strong cues.
+
+
+### Ideal case to study limits of cue taking.
+
+---
+
+<br>
+
+## Alternatively: Issue Sorting (Carmines & Stimson 1986)
+
+- Citizens do not follow party's incongruent issue position.
+- Instead choose different party in line with their preferences.
+
+<br>
+
+### Little causal inference work here so far.
+
+
+---
+
+class: inverse, center, middle
+
+# The Case
+
+---
+
+## Hubert Aiwanger's Vaccination Decision
+
+.left-column[
+
+![Source: Wikipedia](https://upload.wikimedia.org/wikipedia/commons/thumb/f/f1/Hart_aber_fair_2019-02-25-5560.jpg/255px-Hart_aber_fair_2019-02-25-5560.jpg)
+]
+
+.right-column[
+
+- Leader of "Freie Wähler" & Deputy PM of Bavaria
+- In May 2021, it became increasingly clear that HA **would not get vaccinated** immediately.
+- Plenty of media attention.
+- Finally got vaccinated in Nov 2021.
+
+]
+
+---
+
+class: inverse, middle, center
+
+# Design
+
+---
+
+<br>
+
+## Difference-in-Differences
+
+- Exploit **novelty** of Covid-issue $\rightarrow$ cannot affect prior voting decision!
+- Compare change in vaccination rates of districts with low FW-share to those with high FW-share (cue taking).
+
+
+---
+
+<br>
+
+## Data
+
+- Unit of Analysis: Governing/Voting District
+- Conditioning variable: Share of (direct) votes for FW in 2017 Bundestag election.\*
+- Treatment: pre-post 07.05.2021 (first news report about decision).
+- Dependent: Vaccination rates.
+
+---
+
+## Preliminary Results
+
+```{r}
+
+SimpleCor() +
+  theme_xaringan()
+
+```
+
+
+---
+
+
+## Preliminary Results
+
+
+.pull-left[
+
+```{r, results='asis'}
+
+DiDTable()
+
+```
+
+
+]
+
+.pull-right[
+
+```{r, out.width="100%", fig.height=8, fig.width=10}
+
+DiDPlot(size = 2) +
+  theme_xaringan()
+
+```
+
+
+]
+
+---
+
+## Preliminary Results
+
+```{r}
+
+GroupedDiDPlot() +
+  theme_xaringan()
+
+```
+
+
+---
+
+class: inverse, middle, center
+
+# Next steps
+
+
+---
+
+## Matching
+
+.pull-left[
+
+Match based on prior measles-vaccination rate
+
+$\rightarrow$ **ensures treatment exogenous to vaccination attitudes.**
+
+]
+
+.pull-right[
+
+```{r}
+
+knitr::include_url("http://www.vacmap.de/")
+
+```
+
+]
+
+
+---
+
+## Current Issues
+
+- Future vaccinations function of prior vaccinations.
+- What's the right metric?
+  + per capita vaccinations (but different organisation),
+  + mean vaccinations (but differing pop size)
+- Staggered vaccination of different groups.
+- Are really only partisans treated?
+- Weak case of partisanship.
+- Framing: perceptual screen dead?
+
+---
+
+## Potential next steps
+
+- Assess issue sorting effect based on change in 2017-2021 election.
+- Panel data (GLES Panel) assessing attitudes towards Covid policy (incl. vax mandate).
+- Candidacy as instrument?
+- Different case? 
+- ...?
+
+
+---
+
+
+## Thank you for your attention!
+
+
+.center[
+
+![Source: https://www.shapeways.com/product/TVWGNL2DT/star-trek-visor-shades](https://images2.sw-cdn.net/product/picture/710x528_15593702_8611968_1536690653.jpg)
+
+]
+

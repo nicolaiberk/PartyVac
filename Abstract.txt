@@ -1,5 +1,5 @@
-# PartyVac
- Project assessing the impact of party cues on vaccination behaviour
+
+## Leading by Example? How Elite Behaviour affects Individual Vaccination Decisions
 
 ## Abstract
 

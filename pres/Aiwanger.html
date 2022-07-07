@@ -1,0 +1,410 @@
+<!DOCTYPE html>
+<html lang="" xml:lang="">
+  <head>
+    <title>Leading by Example?</title>
+    <meta charset="utf-8" />
+    <meta name="author" content="Nicolai Berk" />
+    <meta name="date" content="2022-06-16" />
+    <script src="libs/header-attrs-2.11/header-attrs.js"></script>
+    <link rel="stylesheet" href="xaringan-themer.css" type="text/css" />
+  </head>
+  <body>
+    <textarea id="source">
+
+
+
+
+
+
+
+
+
+
+
+
+class: inverse, center, middle
+
+# Leading by Example?
+
+### How Elite Behaviour affects Individual Vaccination Decisions
+
+#### Nicolai Berk&lt;sup&gt;*&lt;/sup&gt;
+
+Presentation prepared for the Political Behaviour Workshop at the University of Aarhus
+
+2022-06-16
+
+.left[.footnote[&lt;sup&gt;*&lt;/sup&gt; Dynamics RTG &amp; Humboldt Universität Berlin]]
+
+
+---
+
+class: inverse, center, middle
+
+# What are the limits of cue taking?
+
+---
+
+## Cue Taking
+
+"cues—information about what positions political parties take on policy
+issues" (Slothuus &amp; Bisgaard 2021a, 1)
+
+- Cues are powerful determinants of reported political attitudes (Slothuus &amp; Bisgaard 2021a),
+- even when this goes against personal stakes (Slothuus &amp; Bisgaard 2021b).
+
+--
+
+### But does this translate into behaviour as well?
+
+
+---
+
+## Partisanship as a "Perceptual Screen"
+
+- builds on evidence of partisan differences in reported factual beliefs.
+- Paying people to give better answers mitigates *some* bias, but not all of it (Prior, Sood &amp; Khanna 2015).
+- **PS hypothesis**: differences are caused by differences in **perception of reality** (Campbell 1960; Green &amp; Huber 2009).
+
+--
+
+### Can strong cues alter factual beliefs?
+
+(and what about realms beyond the economy?)
+
+---
+
+&lt;br&gt;
+
+## Vaccination Decisions
+
+- Behavioral data.
+- Highly tangible issue.
+- Costly behavior.
+- Clear and strong cues.
+
+
+### Ideal case to study limits of cue taking.
+
+---
+
+&lt;br&gt;
+
+## Alternatively: Issue Sorting (Carmines &amp; Stimson 1986)
+
+- Citizens do not follow party's incongruent issue position.
+- Instead choose different party in line with their preferences.
+
+&lt;br&gt;
+
+### Little causal inference work here so far.
+
+
+---
+
+class: inverse, center, middle
+
+# The Case
+
+---
+
+## Hubert Aiwanger's Vaccination Decision
+
+.left-column[
+
+![Source: Wikipedia](https://upload.wikimedia.org/wikipedia/commons/thumb/f/f1/Hart_aber_fair_2019-02-25-5560.jpg/255px-Hart_aber_fair_2019-02-25-5560.jpg)
+]
+
+.right-column[
+
+- Leader of "Freie Wähler" &amp; Deputy PM of Bavaria
+- In May 2021, it became increasingly clear that HA **would not get vaccinated** immediately.
+- Plenty of media attention.
+- Finally got vaccinated in Nov 2021.
+
+]
+
+---
+
+class: inverse, middle, center
+
+# Design
+
+---
+
+&lt;br&gt;
+
+## Difference-in-Differences
+
+- Exploit **novelty** of Covid-issue `\(\rightarrow\)` cannot affect prior voting decision!
+- Compare change in vaccination rates of districts with low FW-share to those with high FW-share (cue taking).
+
+
+---
+
+&lt;br&gt;
+
+## Data
+
+- Unit of Analysis: Governing/Voting District
+- Conditioning variable: Share of (direct) votes for FW in 2017 Bundestag election.\*
+- Treatment: pre-post 07.05.2021 (first news report about decision).
+- Dependent: Vaccination rates.
+
+---
+
+## Preliminary Results
+
+&lt;img src="Aiwanger_files/figure-html/unnamed-chunk-1-1.svg" width="90%" style="display: block; margin: auto;" /&gt;
+
+
+---
+
+
+## Preliminary Results
+
+
+.pull-left[
+
+
+|                            | Model 1  |
+|:---------------------------|:--------:|
+|(Intercept)                 | 0.241*** |
+|treatmentTRUE               |  0.004   |
+|post_ivTRUE                 | 0.038*** |
+|treatmentTRUE × post_ivTRUE |  -0.002  |
+
+__Note:__
+^^ + p &lt; 0.1, * p &lt; 0.05, ** p &lt; 0.01, *** p &lt; 0.001
+
+
+]
+
+.pull-right[
+
+&lt;img src="Aiwanger_files/figure-html/unnamed-chunk-3-1.svg" width="100%" style="display: block; margin: auto;" /&gt;
+
+
+]
+
+---
+
+## Preliminary Results
+
+&lt;img src="Aiwanger_files/figure-html/unnamed-chunk-4-1.svg" width="90%" style="display: block; margin: auto;" /&gt;
+
+
+---
+
+class: inverse, middle, center
+
+# Next steps
+
+
+---
+
+## Matching
+
+.pull-left[
+
+Match based on prior measles-vaccination rate
+
+`\(\rightarrow\)` **ensures treatment exogenous to vaccination attitudes.**
+
+]
+
+.pull-right[
+
+&lt;iframe src="http://www.vacmap.de/" width="90%" height="400px" data-external="1"&gt;&lt;/iframe&gt;
+
+]
+
+
+---
+
+## Current Issues
+
+- Future vaccinations function of prior vaccinations.
+- What's the right metric?
+  + per capita vaccinations (but different organisation),
+  + mean vaccinations (but differing pop size)
+- Staggered vaccination of different groups.
+- Are really only partisans treated?
+- Weak case of partisanship.
+- Framing: perceptual screen dead?
+
+---
+
+## Potential next steps
+
+- Assess issue sorting effect based on change in 2017-2021 election.
+- Panel data (GLES Panel) assessing attitudes towards Covid policy (incl. vax mandate).
+- Candidacy as instrument?
+- Different case? 
+- ...?
+
+
+---
+
+
+## Thank you for your attention!
+
+
+.center[
+
+![Source: https://www.shapeways.com/product/TVWGNL2DT/star-trek-visor-shades](https://images2.sw-cdn.net/product/picture/710x528_15593702_8611968_1536690653.jpg)
+
+]
+
+    </textarea>
+<style data-target="print-only">@media screen {.remark-slide-container{display:block;}.remark-slide-scaler{box-shadow:none;}}</style>
+<script src="https://remarkjs.com/downloads/remark-latest.min.js"></script>
+<script>var slideshow = remark.create({
+"highlightStyle": "github",
+"highlightLines": true,
+"countIncrementalSlides": false,
+"ratio": "16:9"
+});
+if (window.HTMLWidgets) slideshow.on('afterShowSlide', function (slide) {
+  window.dispatchEvent(new Event('resize'));
+});
+(function(d) {
+  var s = d.createElement("style"), r = d.querySelector(".remark-slide-scaler");
+  if (!r) return;
+  s.type = "text/css"; s.innerHTML = "@page {size: " + r.style.width + " " + r.style.height +"; }";
+  d.head.appendChild(s);
+})(document);
+
+(function(d) {
+  var el = d.getElementsByClassName("remark-slides-area");
+  if (!el) return;
+  var slide, slides = slideshow.getSlides(), els = el[0].children;
+  for (var i = 1; i < slides.length; i++) {
+    slide = slides[i];
+    if (slide.properties.continued === "true" || slide.properties.count === "false") {
+      els[i - 1].className += ' has-continuation';
+    }
+  }
+  var s = d.createElement("style");
+  s.type = "text/css"; s.innerHTML = "@media print { .has-continuation { display: none; } }";
+  d.head.appendChild(s);
+})(document);
+// delete the temporary CSS (for displaying all slides initially) when the user
+// starts to view slides
+(function() {
+  var deleted = false;
+  slideshow.on('beforeShowSlide', function(slide) {
+    if (deleted) return;
+    var sheets = document.styleSheets, node;
+    for (var i = 0; i < sheets.length; i++) {
+      node = sheets[i].ownerNode;
+      if (node.dataset["target"] !== "print-only") continue;
+      node.parentNode.removeChild(node);
+    }
+    deleted = true;
+  });
+})();
+(function() {
+  "use strict"
+  // Replace <script> tags in slides area to make them executable
+  var scripts = document.querySelectorAll(
+    '.remark-slides-area .remark-slide-container script'
+  );
+  if (!scripts.length) return;
+  for (var i = 0; i < scripts.length; i++) {
+    var s = document.createElement('script');
+    var code = document.createTextNode(scripts[i].textContent);
+    s.appendChild(code);
+    var scriptAttrs = scripts[i].attributes;
+    for (var j = 0; j < scriptAttrs.length; j++) {
+      s.setAttribute(scriptAttrs[j].name, scriptAttrs[j].value);
+    }
+    scripts[i].parentElement.replaceChild(s, scripts[i]);
+  }
+})();
+(function() {
+  var links = document.getElementsByTagName('a');
+  for (var i = 0; i < links.length; i++) {
+    if (/^(https?:)?\/\//.test(links[i].getAttribute('href'))) {
+      links[i].target = '_blank';
+    }
+  }
+})();
+// adds .remark-code-has-line-highlighted class to <pre> parent elements
+// of code chunks containing highlighted lines with class .remark-code-line-highlighted
+(function(d) {
+  const hlines = d.querySelectorAll('.remark-code-line-highlighted');
+  const preParents = [];
+  const findPreParent = function(line, p = 0) {
+    if (p > 1) return null; // traverse up no further than grandparent
+    const el = line.parentElement;
+    return el.tagName === "PRE" ? el : findPreParent(el, ++p);
+  };
+
+  for (let line of hlines) {
+    let pre = findPreParent(line);
+    if (pre && !preParents.includes(pre)) preParents.push(pre);
+  }
+  preParents.forEach(p => p.classList.add("remark-code-has-line-highlighted"));
+})(document);</script>
+<style>
+.logo {
+  background-image: url(vis/hu_logo.png);
+  background-size: contain;
+  background-repeat: no-repeat;
+  position: absolute;
+  top: 0.5em;
+  right: 0.5em;
+  width: 80px;
+  height: 93px;
+  z-index: 0;
+}
+
+</style>
+
+<script>
+document
+  .querySelectorAll(
+    '.remark-slide-content' +
+    ':not(.title-slide)' +
+    // add additional classes to exclude here, e.g.
+    // ':not(.inverse)' +
+    ':not(.hide-logo)'
+  )
+  .forEach(el => {
+    el.innerHTML += '<div class="logo"></div>';
+  });
+</script>
+
+<script>
+slideshow._releaseMath = function(el) {
+  var i, text, code, codes = el.getElementsByTagName('code');
+  for (i = 0; i < codes.length;) {
+    code = codes[i];
+    if (code.parentNode.tagName !== 'PRE' && code.childElementCount === 0) {
+      text = code.textContent;
+      if (/^\\\((.|\s)+\\\)$/.test(text) || /^\\\[(.|\s)+\\\]$/.test(text) ||
+          /^\$\$(.|\s)+\$\$$/.test(text) ||
+          /^\\begin\{([^}]+)\}(.|\s)+\\end\{[^}]+\}$/.test(text)) {
+        code.outerHTML = code.innerHTML;  // remove <code></code>
+        continue;
+      }
+    }
+    i++;
+  }
+};
+slideshow._releaseMath(document);
+</script>
+<!-- dynamically load mathjax for compatibility with self-contained -->
+<script>
+(function () {
+  var script = document.createElement('script');
+  script.type = 'text/javascript';
+  script.src  = 'https://mathjax.rstudio.com/latest/MathJax.js?config=TeX-MML-AM_CHTML';
+  if (location.protocol !== 'file:' && /^https?:/.test(script.src))
+    script.src  = script.src.replace(/^https?:/, '');
+  document.getElementsByTagName('head')[0].appendChild(script);
+})();
+</script>
+  </body>
+</html>

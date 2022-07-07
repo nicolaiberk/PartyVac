@@ -47,3 +47,10 @@ po/*~
 
 # RStudio Connect folder
 rsconnect/
+
+# Other
+*comment*
+log.txt
+data
+lit
+pres/Aiwanger_cache
