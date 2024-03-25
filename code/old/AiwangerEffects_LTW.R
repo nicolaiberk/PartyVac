@@ -19,7 +19,7 @@ library(data.table)
 
 ## covid-vaccinations ####
 # (see https://github.com/robert-koch-institut/COVID-19-Impfungen_in_Deutschland/blob/master/Readme.md)
-vacc_lk <- fread('https://github.com/robert-koch-institut/COVID-19-Impfungen_in_Deutschland/raw/master/Aktuell_Deutschland_Landkreise_COVID-19-Impfungen.csv')
+vacc_lk <- fread('data_new/vac/rki_vaccinations.csv')
 # fwrite(vacc_lk, paste0('rki_vaccinations_', Sys.Date(), '.csv'))
 
 # vacc_lk %>% 
@@ -33,9 +33,10 @@ vacc_lk_tot <-
   # group_by(LK, Impfdatum) %>% 
   # summarise(Anzahl = sum(Anzahl)) %>% 
   mutate(
-    Land   = as.numeric(substr(LK, 1, 2)),
-    Bezirk = as.numeric(substr(LK, 3, 3)),
-    Kreis  = as.numeric(substr(LK, 4, 5))
+    Land   = as.numeric(substr(LK, 1, 1)),
+    Bezirk = as.numeric(substr(LK, 2, 2)),
+    Kreis  = as.numeric(substr(LK, 3, 4)),
+    Impfdatum = as.Date(Impfdatum)
   )
 
 rm(vacc_lk)
@@ -43,8 +44,8 @@ rm(vacc_lk)
 
 ## local election results 2018 ####
 LTW_BY_18 <- 
-  fread('data/14_10_2018_Landtagswahl_2018_Stimmkreise_Bayern.csv') %>% 
-  select(-Parteiname) %>% 
+  fread('data/14_10_2018_Landtagswahl_2018_Stimmkreise_Bayern.csv', encoding = "Latin-1") %>% 
+  select(-Parteiname) %>%
   mutate(Wahlkreis = as.character(Schlüsselnummer)) %>% 
   mutate(Wahlkreis_new =
            case_when(
@@ -57,8 +58,9 @@ LTW_BY_18 <-
   mutate(
     Turnout = as.numeric(str_replace(`Wahlbeteiligung in %`, ',', '.')),
   ) %>%
-  select(contains(c('FREIE WÄHLER', 'CSU', 'SPD', 'GRÜNE')),
+  select(contains(c('FREIE WÄHLER', 'CSU', 'SPD', 'GRÜNE', 'AfD')),
          Wahlkreis, Turnout, Stimmberechtigte, Wähler) %>% 
+  select(-contains('AfD 2013')) %>%
   # mutate(across(contains('Erststimme', 'Zweitstimme', 'Gesamtstimme'),
   #               ~ as.numeric(ifelse(.x == 'X', NA, .x)))) %>% 
   group_by(Wahlkreis) %>% 
@@ -68,7 +70,7 @@ LTW_BY_18 <-
 
 ## wahlkreiszuordnung election 2018 ####
 LTW_WK_LK <-
-  fread('data/ltw18_btw17_gde_stkr_wkr.csv') %>% 
+  fread('data/ltw18_btw17_gde_stkr_wkr.csv', encoding = "Latin-1") %>% 
   mutate(BezirkKreis = str_sub(key, 1, 3),
          Wahlkreis = sk_ltw_nr) %>% 
   select(-key, -gemeinde, -vgem_nr, -vgem_name, -sk_ltw_nr, -wk_btw_nr, -wk_btw_name) %>% 
@@ -114,10 +116,13 @@ merged_final <-
             Turnout = mean(Turnout),
             Anzahl = sum(Anzahl),
             Population = sum(Population)) %>%
-  mutate(FW_share = `Zweitstimmen FREIE WÄHLER 2018`/Wähler)
+  mutate(
+    FW_share = `Zweitstimmen FREIE WÄHLER 2018`/Wähler,
+    AfD_share = `Zweitstimmen AfD 2018`/Wähler
+    )
 
 ## save
-fwrite(merged_final, "data/covid_ltw.csv")
+fwrite(merged_final, "data_new/merged/covid_ltw.csv")
 
 # analyse ####
 
@@ -128,13 +133,16 @@ merged_cum <-
   group_by(Wahlkreis) %>% 
   summarise(
     FW_share = mean(FW_share),
+    AfD_share = mean(AfD_share),
     Wähler = mean(Wähler),
     Impfungen = sum(Anzahl),
     Population = mean(Population)
   ) %>% 
   mutate(vacc_share = Impfungen/Population)
 
-fwrite(merged_cum, "data/covid_ltw_cum.csv")
+fwrite(merged_cum, "data_new/merged/covid_ltw_cum.csv")
+merged_cum <- fread("data/covid_ltw_cum.csv", encoding = "Latin-1")
+
 
 merged_cum %>% 
   ggplot(aes(x = FW_share, y = vacc_share, size = Wähler)) +
@@ -167,36 +175,68 @@ summary(lm(Anzahl ~ FW_share * post_iv, data = merged_final_reg %>% filter(!post
 
 
 
-### Aiwanger interview
-## binary
-summary(lm(Anzahl ~ treatment * post_vac, data = merged_final_reg %>% filter(post_iv)))
-# even negative effect
+### Aiwanger vaccination
+## binary (looks good despite pre-treatment differences)
+summary(fixest::feols(Anzahl ~ treatment * post_vac | Wahlkreis + Impfdatum, data = merged_final_reg %>% filter(post_iv)))
 
-## continuous
+## continuous (looks good despite pre-treatment differences)
 summary(lm(Anzahl ~ FW_share * post_vac, data = merged_final_reg %>% filter(post_iv)))
-# here as well
 
 
 ## plot trends
-merged_final %>% 
-  mutate(treatment = cut(FW_share, c(-Inf, 0.025, 0.05, 0.1, 0.2, Inf))) %>% 
-  mutate(Impfdatum = lubridate::floor_date(Impfdatum, "month")) %>% 
-  group_by(treatment, Impfdatum, Altersgruppe) %>% 
-  summarise(Anzahl = sum(Anzahl)) %>% 
-  ggplot(aes( x = Impfdatum, y = Anzahl, col = treatment, lty = treatment)) +
-  geom_line() +
+merged_final$res  <- fixest::feols(Anzahl ~ 1 | Wahlkreis + Impfdatum, data = merged_final)$residuals
+merged_sum <- 
+  merged_final %>% 
+  mutate(treatment = cut(FW_share, c(-Inf, 0, 0.025, 0.05, 0.1, 0.15, Inf))) %>% 
+  mutate(Impfweek = lubridate::floor_date(Impfdatum, "week")) %>% 
+  group_by(treatment, Impfweek) %>% 
+  summarise(
+    vac_share = sum(Anzahl)/mean(Population),
+    res = sum(res)
+    )
+
+    
+merged_sum %>% 
+  filter(Impfweek < as.Date("2022-01-01")) %>% 
+  ggplot(aes(x = Impfweek, y = res, fill = treatment, lty = treatment)) +
+  geom_col(position = "dodge2") +
   geom_vline(xintercept = as.Date("2021-05-07"), col = "red", lty = 2) +
   geom_vline(xintercept = as.Date("2021-11-11"), col = "red", lty = 2) +
-  facet_wrap(~Altersgruppe, scales = "free_y")
+  theme_minimal()
+ggsave("figures/impfungen_trends_by.png")
 
+## correlate FW share with vaccination rates on regional level
+merged_final %>% 
+  group_by(Wahlkreis) %>% 
+  summarise(
+    FW_share = mean(FW_share),
+    vac_share = sum(Anzahl)/mean(Population),
+    Population = mean(Population)
+  ) %>% 
+  ggplot(aes(x = FW_share, y = vac_share, size = Population)) +
+  geom_point() +
+  geom_smooth(method = 'lm') +
+  theme_minimal()
 
+## correlate AfD share with vaccination rates on regional level
+merged_final %>% 
+  group_by(Wahlkreis) %>% 
+  summarise(
+    AfD_share = mean(`Zweitstimmen AfD 2018`)/mean(Wähler),
+    vac_share = sum(Anzahl)/mean(Population),
+    Population = mean(Population)
+  ) %>% 
+  ggplot(aes(x = AfD_share, y = vac_share, size = Population)) +
+  geom_point() +
+  geom_smooth(method = 'lm') +
+  theme_minimal()
 
 # BTW 2017 ####
-BTW_17_LK <- fread("https://bundeswahlleiter.de/dam/jcr/2e018ffc-0368-4c87-b85f-23dae3a5c8f5/btw2017kreis.csv", 
-                   skip = 5, header = T, nrows = 402)
+BTW_17_LK <- fread("https://bundeswahlleiterin.de/dam/jcr/2e018ffc-0368-4c87-b85f-23dae3a5c8f5/btw2017kreis.csv", 
+                   skip = 5, header = T, nrows = 402, encoding = "Latin-1")
 colnames(BTW_17_LK) <- 
-  fread("https://bundeswahlleiter.de/dam/jcr/2e018ffc-0368-4c87-b85f-23dae3a5c8f5/btw2017kreis.csv", 
-        skip = 4, header = T, nrows = 0) %>% 
+  fread("https://bundeswahlleiterin.de/dam/jcr/2e018ffc-0368-4c87-b85f-23dae3a5c8f5/btw2017kreis.csv", 
+        skip = 4, header = T, nrows = 0, encoding = "Latin-1") %>% 
   colnames()
 
 
@@ -252,7 +292,7 @@ merged_btw_reg <- # aggregate over age groups
   mutate(treatment = FW_share > 0)  %>% 
   mutate(post_vac  = Impfdatum >= as.Date("2021-11-11")) %>% 
   mutate(post_iv   = Impfdatum >= as.Date("2021-05-07")) %>% 
-  mutate(treat_group = cut(FW_share, breaks = c(-Inf, 0, 0.01, 0.025, 0.05, 0.1)))
+  mutate(treat_group = cut(FW_share, breaks = c(-Inf, 0, 0.01, 0.025, 0.05, 0.1, Inf)))
 
 
 
