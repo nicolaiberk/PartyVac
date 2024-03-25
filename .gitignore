@@ -1,3 +1,13 @@
+library/
+local/
+cellar/
+lock/
+python/
+staging/
+data/
+data_new/
+figures/
+
 # History files
 .Rhistory
 .Rapp.history
