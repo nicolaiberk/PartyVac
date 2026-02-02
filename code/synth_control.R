@@ -200,4 +200,149 @@ plot(synth_result_alt) +
     theme_minimal()
 dev.off()
 
+## ---- 7. Single-unit SCM: Landshut (Aiwanger's district) ----
+
+## Landshut is in Bayern (Land=9), Niederbayern (Bezirk=2).
+## Identify it as the Bavarian district with the highest FW share,
+## with a sanity check on the Bezirk code.
+bavarian_districts <- panel %>%
+    filter(Land == 9) %>%
+    pull(district_id) %>%
+    unique()
+
+bavarian_fw <- district_fw %>%
+    filter(district_id %in% bavarian_districts)
+
+## Landshut LK has AGS 09274 -> Land=9, Bezirk=2, Kreis=74
+## Landshut SK has AGS 09261 -> Land=9, Bezirk=2, Kreis=61
+## Try exact match first, fall back to highest-FW Bavarian district
+landshut_candidates <- c("9_2_74", "9_2_61")
+landshut_id <- landshut_candidates[landshut_candidates %in% bavarian_fw$district_id]
+
+if (length(landshut_id) == 0) {
+    ## Fallback: highest FW share in Bavaria
+    landshut_id <- bavarian_fw %>%
+        slice_max(FW_share, n = 1) %>%
+        pull(district_id)
+    cat(sprintf("Landshut not found by AGS; using highest-FW Bavarian district: %s (FW=%.1f%%)\n",
+                landshut_id, bavarian_fw$FW_share[bavarian_fw$district_id == landshut_id] * 100))
+} else {
+    ## If both SK and LK exist, pick the one with higher FW share
+    landshut_id <- bavarian_fw %>%
+        filter(district_id %in% landshut_id) %>%
+        slice_max(FW_share, n = 1) %>%
+        pull(district_id)
+}
+
+cat(sprintf(
+    "Landshut district: %s (FW share: %.1f%%)\n",
+    landshut_id,
+    bavarian_fw$FW_share[bavarian_fw$district_id == landshut_id] * 100
+))
+
+## Donor pool: all other Bavarian districts
+landshut_panel <- panel %>%
+    filter(district_id %in% bavarian_districts) %>%
+    mutate(treated = as.integer(district_id == landshut_id))
+
+## Balance the panel
+lh_district_counts <- landshut_panel %>%
+    group_by(district_id) %>%
+    summarise(n_weeks = n_distinct(week))
+
+lh_max_weeks <- max(lh_district_counts$n_weeks)
+lh_balanced <- landshut_panel %>%
+    filter(district_id %in%
+        (lh_district_counts %>% filter(n_weeks == lh_max_weeks) %>% pull(district_id)))
+
+cat(sprintf(
+    "Landshut SCM: 1 treated + %d Bavarian donors, %d weeks\n",
+    n_distinct(lh_balanced$district_id) - 1,
+    lh_max_weeks
+))
+
+## Run single-unit augmented synthetic control
+synth_landshut <- augsynth(
+    vac_rate ~ treated,
+    unit    = district_id,
+    time    = week,
+    data    = lh_balanced,
+    progfunc = "Ridge",
+    scm     = TRUE
+)
+
+cat("\n=== Synthetic Control: Landshut vs. Synthetic Landshut ===\n")
+print(summary(synth_landshut))
+
+## Plot observed vs synthetic trajectory
+svg("figures/synth_control_landshut.svg", width = 10, height = 6)
+plot(synth_landshut) +
+    geom_vline(xintercept = treatment_date, col = "red", lty = 2) +
+    annotate("text", x = treatment_date + 7, y = Inf, vjust = 2,
+             label = "Aiwanger\ninterview", col = "red", size = 3) +
+    geom_vline(xintercept = as.Date("2021-11-11"), col = "blue", lty = 2) +
+    annotate("text", x = as.Date("2021-11-11") + 7, y = Inf, vjust = 2,
+             label = "Aiwanger\nvaccinated", col = "blue", size = 3) +
+    labs(
+        title = "Synthetic Control: Landshut (Aiwanger's District)",
+        subtitle = "Donor pool: Other Bavarian districts",
+        y = "ATT (Vaccination rate per eligible voter)",
+        x = ""
+    ) +
+    theme_minimal()
+dev.off()
+
+## Placebo inference: run SCM for each donor as if treated
+donor_ids <- lh_balanced %>%
+    filter(district_id != landshut_id) %>%
+    pull(district_id) %>%
+    unique()
+
+placebo_atts <- list()
+for (d in donor_ids) {
+    placebo_data <- lh_balanced %>%
+        mutate(treated = as.integer(district_id == d))
+
+    tryCatch({
+        placebo_fit <- augsynth(
+            vac_rate ~ treated,
+            unit     = district_id,
+            time     = week,
+            data     = placebo_data,
+            progfunc = "Ridge",
+            scm      = TRUE
+        )
+        placebo_atts[[d]] <- summary(placebo_fit)$att
+    }, error = function(e) {
+        cat(sprintf("  Placebo %s failed: %s\n", d, e$message))
+    })
+}
+
+## Compare Landshut ATT to placebo distribution
+landshut_att <- summary(synth_landshut)$att
+placebo_att_vals <- sapply(placebo_atts, function(x) mean(x$Estimate, na.rm = TRUE))
+landshut_att_mean <- mean(landshut_att$Estimate, na.rm = TRUE)
+p_value <- mean(abs(placebo_att_vals) >= abs(landshut_att_mean), na.rm = TRUE)
+
+cat(sprintf(
+    "\nLandshut ATT (mean): %.5f | Placebo p-value: %.3f (%d/%d placebos)\n",
+    landshut_att_mean, p_value, sum(abs(placebo_att_vals) >= abs(landshut_att_mean)), length(placebo_att_vals)
+))
+
+## Plot placebo distribution
+svg("figures/synth_control_landshut_placebo.svg", width = 8, height = 5)
+tibble(att = placebo_att_vals) %>%
+    ggplot(aes(x = att)) +
+    geom_histogram(bins = 30, fill = "grey70", col = "white") +
+    geom_vline(xintercept = landshut_att_mean, col = "red", linewidth = 1) +
+    annotate("text", x = landshut_att_mean, y = Inf, vjust = 2, hjust = -0.1,
+             label = sprintf("Landshut\n(p = %.3f)", p_value), col = "red", size = 3.5) +
+    labs(
+        title = "Placebo Test: Landshut vs. Donor Districts",
+        x = "Mean ATT (placebo distribution)",
+        y = "Count"
+    ) +
+    theme_minimal()
+dev.off()
+
 cat("\nSynthetic control analysis complete. Figures saved to figures/\n")
