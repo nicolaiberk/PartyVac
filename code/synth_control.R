@@ -63,12 +63,27 @@ panel <- merged_btw %>%
 
 treatment_date <- as.Date("2021-05-07")
 
+## Detect whether FW_share is proportion (0-1) or percentage (0-100)
+district_fw <- panel %>%
+    group_by(district_id) %>%
+    summarise(FW_share = mean(FW_share))
+
+fw_max <- max(district_fw$FW_share, na.rm = TRUE)
+if (fw_max > 1) {
+    cat(sprintf("FW_share appears to be in %% (max=%.1f). Converting to proportion.\n", fw_max))
+    district_fw$FW_share <- district_fw$FW_share / 100
+    panel$FW_share <- panel$FW_share / 100
+}
+
+cat(sprintf(
+    "FW_share distribution: min=%.4f, median=%.4f, max=%.4f\n",
+    min(district_fw$FW_share), median(district_fw$FW_share), max(district_fw$FW_share)
+))
+
 ## Classify districts by FW support
 ## High FW (treated): >5% vote share
 ## Donor pool: 0% FW vote share (never had FW presence)
-district_fw <- panel %>%
-    group_by(district_id) %>%
-    summarise(FW_share = mean(FW_share)) %>%
+district_fw <- district_fw %>%
     mutate(
         treat_group = case_when(
             FW_share > 0.05 ~ "high_fw",
@@ -76,6 +91,13 @@ district_fw <- panel %>%
             TRUE            ~ "no_fw"
         )
     )
+
+cat(sprintf(
+    "Treatment groups: %d high_fw, %d low_fw, %d no_fw\n",
+    sum(district_fw$treat_group == "high_fw"),
+    sum(district_fw$treat_group == "low_fw"),
+    sum(district_fw$treat_group == "no_fw")
+))
 
 panel <- panel %>%
     left_join(district_fw %>% select(district_id, treat_group), by = "district_id")
@@ -95,23 +117,29 @@ synth_data <- panel %>%
     filter(treat_group %in% c("high_fw", "no_fw")) %>%
     arrange(district_id, week)
 
-## augsynth requires a balanced panel
-## Keep only weeks present for all districts
-week_counts <- synth_data %>%
-    group_by(week) %>%
-    summarise(n_districts = n_distinct(district_id))
-
+## Balance the panel: keep districts present for >= 95% of weeks
+## (strict "all weeks" requirement can drop too many districts)
 district_counts <- synth_data %>%
     group_by(district_id) %>%
     summarise(n_weeks = n_distinct(week))
 
 max_weeks <- max(district_counts$n_weeks)
+week_threshold <- floor(max_weeks * 0.95)
+
 balanced_districts <- district_counts %>%
-    filter(n_weeks == max_weeks) %>%
+    filter(n_weeks >= week_threshold) %>%
     pull(district_id)
 
+## Keep only the weeks that all balanced districts share
+common_weeks <- synth_data %>%
+    filter(district_id %in% balanced_districts) %>%
+    group_by(week) %>%
+    summarise(n = n_distinct(district_id)) %>%
+    filter(n == length(balanced_districts)) %>%
+    pull(week)
+
 synth_balanced <- synth_data %>%
-    filter(district_id %in% balanced_districts)
+    filter(district_id %in% balanced_districts, week %in% common_weeks)
 
 cat(sprintf(
     "Balanced panel: %d districts x %d weeks (%d treated, %d donors)\n",
@@ -246,20 +274,33 @@ landshut_panel <- panel %>%
     filter(district_id %in% bavarian_districts) %>%
     mutate(treated = as.integer(district_id == landshut_id))
 
-## Balance the panel
+## Balance the panel (keep districts with >= 95% of weeks, then intersect weeks)
 lh_district_counts <- landshut_panel %>%
     group_by(district_id) %>%
     summarise(n_weeks = n_distinct(week))
 
 lh_max_weeks <- max(lh_district_counts$n_weeks)
+lh_threshold <- floor(lh_max_weeks * 0.95)
+
+## Always keep Landshut; keep donors with enough weeks
+lh_balanced_ids <- lh_district_counts %>%
+    filter(n_weeks >= lh_threshold | district_id == landshut_id) %>%
+    pull(district_id)
+
+lh_common_weeks <- landshut_panel %>%
+    filter(district_id %in% lh_balanced_ids) %>%
+    group_by(week) %>%
+    summarise(n = n_distinct(district_id)) %>%
+    filter(n == length(lh_balanced_ids)) %>%
+    pull(week)
+
 lh_balanced <- landshut_panel %>%
-    filter(district_id %in%
-        (lh_district_counts %>% filter(n_weeks == lh_max_weeks) %>% pull(district_id)))
+    filter(district_id %in% lh_balanced_ids, week %in% lh_common_weeks)
 
 cat(sprintf(
     "Landshut SCM: 1 treated + %d Bavarian donors, %d weeks\n",
     n_distinct(lh_balanced$district_id) - 1,
-    lh_max_weeks
+    n_distinct(lh_common_weeks)
 ))
 
 ## Run single-unit augmented synthetic control
