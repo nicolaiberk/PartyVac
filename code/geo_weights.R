@@ -18,7 +18,7 @@
 ## Dependencies:
 ##   - Wahlkreis shapefile: data_new/elections/btw21_geometrie_wahlkreise_shp/
 ##   - Landkreis shapefile: data_new/geo/vg250_lk/ (VG250 from BKG)
-##   - Population lookup:   data_new/elections/btw21_lks_wks_pop.csv
+##   - Population by LK:    data_new/elections/btw21_lks_wks_pop.csv
 ## ____________________________________________________________
 
 library(sf)
@@ -58,10 +58,82 @@ lk_sf <- read_sf("data_new/geo/vg250_lk/VG250_KRS.shp")
 
 ## The AGS field is a 5-digit string (zero-padded).
 ## Convert to numeric Landkreis_ID to match RKI vaccination data.
+## Note: VG250 KRS layer does not include population (EWZ); we load
+## population separately from the LK-WK lookup table.
 lk_sf <- lk_sf %>%
     mutate(Landkreis_ID = as.numeric(AGS)) %>%
-    select(Landkreis_ID, GEN, EWZ, geometry) %>%
-    rename(lk_name = GEN, lk_pop = EWZ)
+    select(Landkreis_ID, GEN, geometry) %>%
+    rename(lk_name = GEN)
+
+## Load LK-level population from the LK-WK lookup table.
+## This file has one row per LK-WK combination, with an `insgesamt`
+## (total population) column per LK. We aggregate to unique LKs.
+## The LK ID is constructed from the Kreiskennziffer columns, matching
+## the same logic used in the original geo_merge.R lookup table parsing.
+lk_wk_raw <- fread("data_new/elections/btw21_lks_wks_pop.csv")
+
+## Detect column layout: the file may use different header names.
+## Try the Kreiskennziffer columns first; fall back to RGS columns.
+if ("Kreiskennziffer (Land)" %in% names(lk_wk_raw)) {
+    lk_pop <- lk_wk_raw %>%
+        mutate(
+            population = as.numeric(str_remove_all(insgesamt, " ")),
+            Landkreis_ID = as.numeric(paste0(
+                `Kreiskennziffer (Land)`,
+                `Kreiskennziffer (RB)`,
+                ifelse(
+                    nchar(as.character(`Kreiskennziffer (Kreis)`)) == 1 &
+                        nchar(as.character(`Kreiskennziffer (RB)`)) == 1,
+                    paste0("0", `Kreiskennziffer (Kreis)`),
+                    `Kreiskennziffer (Kreis)`
+                )
+            ))
+        )
+} else if ("RGS_Land" %in% names(lk_wk_raw)) {
+    lk_pop <- lk_wk_raw %>%
+        mutate(
+            population = as.numeric(str_remove_all(insgesamt, " ")),
+            Landkreis_ID = as.numeric(paste0(
+                RGS_Land,
+                RGS_RegBez,
+                ifelse(
+                    nchar(as.character(RGS_Kreis)) == 1 &
+                        nchar(as.character(RGS_RegBez)) == 1,
+                    paste0("0", RGS_Kreis),
+                    RGS_Kreis
+                )
+            ))
+        )
+} else {
+    stop(
+        "Cannot parse btw21_lks_wks_pop.csv: expected columns ",
+        "'Kreiskennziffer (Land/RB/Kreis)' or 'RGS_Land/RGS_RegBez/RGS_Kreis'.\n",
+        "Found: ", paste(names(lk_wk_raw), collapse = ", ")
+    )
+}
+
+lk_pop <- lk_pop %>%
+    group_by(Landkreis_ID) %>%
+    summarise(lk_pop = sum(population, na.rm = TRUE)) %>%
+    filter(!is.na(Landkreis_ID), lk_pop > 0)
+
+## Join population to the spatial data
+lk_sf <- lk_sf %>%
+    left_join(st_drop_geometry(lk_pop), by = "Landkreis_ID")
+
+## Warn about any LKs without population data
+n_missing_pop <- sum(is.na(lk_sf$lk_pop))
+if (n_missing_pop > 0) {
+    warning(sprintf(
+        "%d Landkreise have no population data. Using area-proportional proxy for these.",
+        n_missing_pop
+    ))
+    ## Use median pop density * LK area as proxy, so area_share still drives the weight
+    known <- lk_sf %>% filter(!is.na(lk_pop))
+    median_density <- median(known$lk_pop / as.numeric(st_area(known)), na.rm = TRUE)
+    lk_sf$lk_pop[is.na(lk_sf$lk_pop)] <-
+        median_density * as.numeric(st_area(lk_sf[is.na(lk_sf$lk_pop), ]))
+}
 
 ## Ensure both are in the same CRS
 wk_sf <- st_transform(wk_sf, st_crs(lk_sf))
@@ -115,7 +187,7 @@ weights <- weights %>%
 ## Sanity checks
 stopifnot(
     all(weights$area_share >= 0 & weights$area_share <= 1.01),
-    all(weights$pop_weight_in_wk >= 0)
+    all(weights$pop_weight_in_wk >= 0, na.rm = TRUE)
 )
 
 ## Small floating-point overlaps can produce area_share slightly > 1; cap it
