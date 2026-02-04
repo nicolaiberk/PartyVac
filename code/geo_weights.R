@@ -35,15 +35,20 @@ wk_sf <- wk_sf %>%
     rename(wk_nr = WKR_NR)
 
 ## Landkreise (administrative districts) - VG250 from BKG
-## Download from: https://daten.gdz.bkg.bund.de/produkte/vg/vg250_ebenen_0101/
-## Place the Kreise layer shapefile in data_new/geo/vg250_lk/
+## Use the 01.01.2021 edition to match the 2021 Wahlkreis boundaries
+## and 2021 RKI vaccination Landkreis IDs. No Kreisgebietsreformen
+## occurred between 2019 (polio data) and 2021, so boundaries are stable.
+##
+## Download: https://daten.gdz.bkg.bund.de/produkte/vg/vg250_ebenen_0101/
+##   -> vg250_01-01.utm32s.shape.ebenen.zip (2021 edition)
+##   -> extract VG250_KRS.shp (Kreise layer) to data_new/geo/vg250_lk/
 ##
 ## The VG250 shapefile uses AGS (Amtlicher Gemeindeschlüssel) as district key.
 ## We construct Landkreis_ID from the AGS to match the RKI vaccination data.
 if (!file.exists("data_new/geo/vg250_lk/VG250_KRS.shp")) {
     stop(
         "Landkreis shapefile not found.\n",
-        "Please download VG250 (Kreise) from BKG:\n",
+        "Please download VG250 (Kreise), 01.01.2021 edition, from BKG:\n",
         "  https://daten.gdz.bkg.bund.de/produkte/vg/vg250_ebenen_0101/\n",
         "Extract VG250_KRS.shp (and associated files) to: data_new/geo/vg250_lk/"
     )
