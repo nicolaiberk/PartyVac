@@ -56,6 +56,11 @@ if (!file.exists("data_new/geo/vg250_lk/VG250_KRS.shp")) {
 
 lk_sf <- read_sf("data_new/geo/vg250_lk/VG250_KRS.shp")
 
+## The VG250 KRS layer contains multiple rows per Landkreis with different
+## GF (Gebietsflaeche) types: GF=4 is the full territory including water
+## bodies. Filter to GF=4 to get exactly one geometry per LK.
+lk_sf <- lk_sf %>% filter(GF == 4)
+
 ## The AGS field is a 5-digit string (zero-padded).
 ## Convert to numeric Landkreis_ID to match RKI vaccination data.
 ## Note: VG250 KRS layer does not include population (EWZ); we load
@@ -64,6 +69,8 @@ lk_sf <- lk_sf %>%
     mutate(Landkreis_ID = as.numeric(AGS)) %>%
     select(Landkreis_ID, GEN, geometry) %>%
     rename(lk_name = GEN)
+
+stopifnot(!any(duplicated(lk_sf$Landkreis_ID)))
 
 ## Load LK-level population from the LK-WK lookup table.
 ## The file has one row per Gemeinde with columns AGS (Gemeindeschlüssel)
