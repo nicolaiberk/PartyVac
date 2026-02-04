@@ -23,10 +23,11 @@
 library(data.table)
 library(tidyverse)
 
-## Install augsynth if not available
+## Install augsynth if not available (GitHub only, not on CRAN)
 if (!requireNamespace("augsynth", quietly = TRUE)) {
-    message("Installing augsynth...")
-    install.packages("augsynth")
+    message("Installing augsynth from GitHub...")
+    if (!requireNamespace("remotes", quietly = TRUE)) install.packages("remotes")
+    remotes::install_github("ebenmichael/augsynth")
 }
 library(augsynth)
 
