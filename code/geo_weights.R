@@ -66,53 +66,20 @@ lk_sf <- lk_sf %>%
     rename(lk_name = GEN)
 
 ## Load LK-level population from the LK-WK lookup table.
-## This file has one row per LK-WK combination, with an `insgesamt`
-## (total population) column per LK. We aggregate to unique LKs.
-## The LK ID is constructed from the Kreiskennziffer columns, matching
-## the same logic used in the original geo_merge.R lookup table parsing.
+## The file has one row per Gemeinde with columns AGS (Gemeindeschlüssel)
+## and insgesamt (total population). We truncate AGS to 5 digits to get
+## the Landkreis ID and aggregate population across Gemeinden.
 lk_wk_raw <- fread("data_new/elections/btw21_lks_wks_pop.csv")
 
-## Detect column layout: the file may use different header names.
-## Try the Kreiskennziffer columns first; fall back to RGS columns.
-if ("Kreiskennziffer (Land)" %in% names(lk_wk_raw)) {
-    lk_pop <- lk_wk_raw %>%
-        mutate(
-            population = as.numeric(str_remove_all(insgesamt, " ")),
-            Landkreis_ID = as.numeric(paste0(
-                `Kreiskennziffer (Land)`,
-                `Kreiskennziffer (RB)`,
-                ifelse(
-                    nchar(as.character(`Kreiskennziffer (Kreis)`)) == 1 &
-                        nchar(as.character(`Kreiskennziffer (RB)`)) == 1,
-                    paste0("0", `Kreiskennziffer (Kreis)`),
-                    `Kreiskennziffer (Kreis)`
-                )
-            ))
-        )
-} else if ("RGS_Land" %in% names(lk_wk_raw)) {
-    lk_pop <- lk_wk_raw %>%
-        mutate(
-            population = as.numeric(str_remove_all(insgesamt, " ")),
-            Landkreis_ID = as.numeric(paste0(
-                RGS_Land,
-                RGS_RegBez,
-                ifelse(
-                    nchar(as.character(RGS_Kreis)) == 1 &
-                        nchar(as.character(RGS_RegBez)) == 1,
-                    paste0("0", RGS_Kreis),
-                    RGS_Kreis
-                )
-            ))
-        )
-} else {
-    stop(
-        "Cannot parse btw21_lks_wks_pop.csv: expected columns ",
-        "'Kreiskennziffer (Land/RB/Kreis)' or 'RGS_Land/RGS_RegBez/RGS_Kreis'.\n",
-        "Found: ", paste(names(lk_wk_raw), collapse = ", ")
-    )
-}
-
-lk_pop <- lk_pop %>%
+lk_pop <- lk_wk_raw %>%
+    mutate(
+        population = as.numeric(str_remove_all(insgesamt, " ")),
+        ## AGS: first 5 digits = Landkreis, remaining digits = Gemeinde
+        Landkreis_ID = as.numeric(substr(
+            str_pad(as.character(AGS), width = 8, pad = "0"),
+            1, 5
+        ))
+    ) %>%
     group_by(Landkreis_ID) %>%
     summarise(lk_pop = sum(population, na.rm = TRUE)) %>%
     filter(!is.na(Landkreis_ID), lk_pop > 0)
