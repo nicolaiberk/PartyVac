@@ -207,8 +207,7 @@ print(summary(synth_result))
 dir.create("figures", showWarnings = FALSE)
 
 ## Plot treatment effects over time
-svg("figures/synth_control_aiwanger.svg", width = 10, height = 6)
-plot(synth_result) +
+p_main <- plot(synth_result) +
     geom_vline(xintercept = treatment_date, col = "red", lty = 2) +
     annotate("text", x = treatment_date + 7, y = Inf, vjust = 2,
              label = "Aiwanger\ninterview", col = "red", size = 3) +
@@ -222,7 +221,7 @@ plot(synth_result) +
         x = ""
     ) +
     theme_minimal()
-dev.off()
+ggsave("figures/synth_control_aiwanger.svg", p_main, width = 10, height = 6)
 
 
 ## ---- 5. Placebo / Permutation Inference ----
@@ -256,8 +255,7 @@ synth_result_alt <- multisynth(
 cat("\n=== Robustness: FW > 2.5% threshold ===\n")
 print(summary(synth_result_alt))
 
-svg("figures/synth_control_aiwanger_alt.svg", width = 10, height = 6)
-plot(synth_result_alt) +
+p_alt <- plot(synth_result_alt) +
     geom_vline(xintercept = treatment_date, col = "red", lty = 2) +
     labs(
         title = "Robustness: FW > 2.5% threshold",
@@ -265,7 +263,7 @@ plot(synth_result_alt) +
         x = ""
     ) +
     theme_minimal()
-dev.off()
+ggsave("figures/synth_control_aiwanger_alt.svg", p_alt, width = 10, height = 6)
 
 ## ---- 7. Single-unit SCM: Landshut (Aiwanger's district) ----
 
@@ -362,8 +360,7 @@ cat("\n=== Synthetic Control: Landshut vs. Synthetic Landshut ===\n")
 print(summary(synth_landshut))
 
 ## Plot observed vs synthetic trajectory
-svg("figures/synth_control_landshut.svg", width = 10, height = 6)
-plot(synth_landshut) +
+p_landshut <- plot(synth_landshut) +
     geom_vline(xintercept = treatment_date, col = "red", lty = 2) +
     annotate("text", x = treatment_date + 7, y = Inf, vjust = 2,
              label = "Aiwanger\ninterview", col = "red", size = 3) +
@@ -377,7 +374,7 @@ plot(synth_landshut) +
         x = ""
     ) +
     theme_minimal()
-dev.off()
+ggsave("figures/synth_control_landshut.svg", p_landshut, width = 10, height = 6)
 
 ## Placebo inference: run SCM for each donor as if treated
 donor_ids <- lh_balanced %>%
@@ -417,8 +414,7 @@ cat(sprintf(
 ))
 
 ## Plot placebo distribution
-svg("figures/synth_control_landshut_placebo.svg", width = 8, height = 5)
-tibble(att = placebo_att_vals) %>%
+p_placebo <- tibble(att = placebo_att_vals) %>%
     ggplot(aes(x = att)) +
     geom_histogram(bins = 30, fill = "grey70", col = "white") +
     geom_vline(xintercept = landshut_att_mean, col = "red", linewidth = 1) +
@@ -430,6 +426,6 @@ tibble(att = placebo_att_vals) %>%
         y = "Count"
     ) +
     theme_minimal()
-dev.off()
+ggsave("figures/synth_control_landshut_placebo.svg", p_placebo, width = 8, height = 5)
 
 cat("\nSynthetic control analysis complete. Figures saved to figures/\n")
