@@ -92,55 +92,36 @@ merged <-
     btw21_lk %>% 
     left_join(btw17_lk, by = c("Gebietsnummer"))
 
-## load lookup table for landkrei-wahlkreis matching
-btw21_lks_wks <- 
-    fread("data_new/elections/btw21_lks_wks.csv", skip = 7) %>% 
-    select(`Wahlkreis-Nr`, `Wahlkreis-Bez`, RGS_Land, RGS_RegBez, RGS_Kreis, Kreisname) %>% 
-    rename(
-        wk_nr = `Wahlkreis-Nr`,
-        wk_name = `Wahlkreis-Bez`
-    ) %>%
-    mutate(
-        Landkreis_ID = 
-            as.numeric(
-                paste0(
-                    RGS_Land,
-                    RGS_RegBez,
-                    ifelse(
-                        (str_length(as.character(RGS_Kreis)) == 1) & (str_length(as.character(RGS_RegBez)) == 1),
-                        paste0("0", RGS_Kreis),
-                        RGS_Kreis))
-            )
-    ) %>% 
-    select(Landkreis_ID, wk_nr) %>% 
-    unique()
+## ---- LK-WK matching with area & population weights ----
+## Compute weights if not yet available, then use them for weighted aggregation.
+## See code/geo_weights.R for details on how weights are computed from
+## geographic intersection of LK and WK shapefiles + LK population.
 
-## prep polio data with landkreis-wahlkreis matching
-## note that we're assuming identical rates for lKs spanning multiple WKs
-vac_polio_lk <- 
-    vac_polio_lk %>% 
-    left_join(y = btw21_lks_wks, by = c("Landkreis_ID")) %>%
-    rename(Polio_Share = Impfquote) %>% 
-    select(wk_nr, Landkreis_Name, Polio_Share) %>% 
+if (!file.exists("data_new/matching/lk_wk_weights.csv")) {
+    cat("LK-WK weights not found. Running geo_weights.R to compute them...\n")
+    source("code/geo_weights.R")
+}
+
+lk_wk_weights <- fread("data_new/matching/lk_wk_weights.csv")
+
+## prep polio data: population-weighted average of LK rates within each WK
+vac_polio_lk <-
+    vac_polio_lk %>%
+    rename(Polio_Share = Impfquote) %>%
+    inner_join(lk_wk_weights, by = "Landkreis_ID") %>%
     group_by(wk_nr) %>%
-    summarise(Polio_Share = mean(Polio_Share))
+    summarise(Polio_Share = weighted.mean(Polio_Share, w = pop_weight_in_wk, na.rm = TRUE))
 
-## prep covid data with landkreis-wahlkreis matching
-vac_covid_lk <- 
-    vac_covid_lk %>% 
-    filter(LandkreisId_Impfort != 17000) %>% # Impfungen des Bundesressorts werden separat ausgewiesen, da die Impfstellen des Bundes ohne exakte Angabe des Impfortes melden
-    left_join(btw21_lks_wks, by = c("LandkreisId_Impfort" = "Landkreis_ID")) %>% 
+## prep covid data: distribute LK-level shots to WKs proportional to area share
+## (area_share approximates the fraction of an LK's population residing in each WK)
+vac_covid_lk <-
+    vac_covid_lk %>%
+    filter(LandkreisId_Impfort != 17000) %>%
     rename(Covid_Shots = Anzahl) %>%
-
-    ## if lk matches mulitple wks, distribute shots equally
-    group_by(LandkreisId_Impfort) %>%
-    mutate(Covid_Shots = Covid_Shots/n()) %>%
-    ungroup() %>%
-
+    inner_join(lk_wk_weights, by = c("LandkreisId_Impfort" = "Landkreis_ID")) %>%
+    mutate(Covid_Shots_weighted = Covid_Shots * area_share) %>%
     group_by(wk_nr) %>%
-    summarise(Covid_Shots = sum(Covid_Shots))
-
-## NOTE: ideally do this with weighting of population and geographical overlap - in total 108 LKs with multiple WKs!
+    summarise(Covid_Shots = sum(Covid_Shots_weighted))
 
 ## merge vac data
 merged <- 
@@ -148,18 +129,13 @@ merged <-
     left_join(vac_polio_lk, by = c("Gebietsnummer" = "wk_nr")) %>% 
     left_join(vac_covid_lk, by = c("Gebietsnummer" = "wk_nr"))
 
-## merge population-level data - these stats are bs, weight by eligible voters for now
-# btw21_wks_pop <- 
-#     fread("data_new/elections/btw21_lks_wks_pop.csv") %>% 
-#     rename(wk_nr = `Bundestagswahlkreis 2021`) %>%
-#     mutate(population = as.numeric(str_remove_all(`insgesamt`, " "))) %>%
-#     group_by(wk_nr) %>%
-#     summarise(Population = sum(population)) %>% 
-#     select(wk_nr, Population)
+## Population per WK is now available from the geo weights
+wk_pop <- lk_wk_weights %>%
+    group_by(wk_nr) %>%
+    summarise(Population = sum(pop_in_wk))
 
-# merged <- 
-#     merged %>% 
-#     left_join(btw21_wks_pop, by = c("Gebietsnummer" = "wk_nr"))
+merged <- merged %>%
+    left_join(wk_pop, by = c("Gebietsnummer" = "wk_nr"))
 
 ## save
 fwrite(merged, "data_new/merged/btw_17_21_cov21_polio19.csv", row.names = FALSE)
