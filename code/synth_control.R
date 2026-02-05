@@ -308,23 +308,26 @@ cat(sprintf(
 ))
 
 ## Donor pool: all other Bavarian districts
+## Treatment is time-varying: 0 pre-treatment, 1 post for Landshut only
 landshut_panel <- panel %>%
     filter(district_id %in% bavarian_districts) %>%
-    mutate(treated = as.integer(district_id == landshut_id))
+    mutate(treated = as.integer(district_id == landshut_id & week >= treatment_date))
 
-## Balance the panel (keep districts with >= 95% of weeks, then intersect weeks)
+## Balance: use Landshut's week count as the threshold so it always survives,
+## then keep donors that have at least as many weeks
 lh_district_counts <- landshut_panel %>%
     group_by(district_id) %>%
     summarise(n_weeks = n_distinct(week))
 
-lh_max_weeks <- max(lh_district_counts$n_weeks)
-lh_threshold <- floor(lh_max_weeks * 0.95)
+landshut_n_weeks <- lh_district_counts %>%
+    filter(district_id == landshut_id) %>%
+    pull(n_weeks)
 
-## Always keep Landshut; keep donors with enough weeks
 lh_balanced_ids <- lh_district_counts %>%
-    filter(n_weeks >= lh_threshold | district_id == landshut_id) %>%
+    filter(n_weeks >= landshut_n_weeks) %>%
     pull(district_id)
 
+## Intersect to common weeks across all retained districts
 lh_common_weeks <- landshut_panel %>%
     filter(district_id %in% lh_balanced_ids) %>%
     group_by(week) %>%
@@ -335,10 +338,14 @@ lh_common_weeks <- landshut_panel %>%
 lh_balanced <- landshut_panel %>%
     filter(district_id %in% lh_balanced_ids, week %in% lh_common_weeks)
 
+lh_n_pre  <- sum(lh_common_weeks < treatment_date)
+lh_n_post <- sum(lh_common_weeks >= treatment_date)
+
 cat(sprintf(
-    "Landshut SCM: 1 treated + %d Bavarian donors, %d weeks\n",
+    "Landshut SCM: 1 treated + %d Bavarian donors, %d weeks (%d pre, %d post)\n",
     n_distinct(lh_balanced$district_id) - 1,
-    n_distinct(lh_common_weeks)
+    n_distinct(lh_common_weeks),
+    lh_n_pre, lh_n_post
 ))
 
 ## Run single-unit augmented synthetic control
@@ -381,7 +388,7 @@ donor_ids <- lh_balanced %>%
 placebo_atts <- list()
 for (d in donor_ids) {
     placebo_data <- lh_balanced %>%
-        mutate(treated = as.integer(district_id == d))
+        mutate(treated = as.integer(district_id == d & week >= treatment_date))
 
     tryCatch({
         placebo_fit <- augsynth(
