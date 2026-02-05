@@ -207,13 +207,23 @@ print(summary(synth_result))
 dir.create("figures", showWarnings = FALSE)
 
 ## Plot treatment effects over time
-p_main <- plot(synth_result) +
+## multisynth's plot() uses relative time indices on x-axis.
+## Extract ATT estimates and plot with actual dates instead.
+synth_att <- summary(synth_result)$att
+synth_att$week <- sort(unique(synth_balanced$week))[1:nrow(synth_att)]
+
+p_main <- ggplot(synth_att, aes(x = week, y = Estimate)) +
+    geom_ribbon(aes(ymin = Estimate - 2 * Std.Error,
+                    ymax = Estimate + 2 * Std.Error), alpha = 0.2) +
+    geom_line() +
+    geom_hline(yintercept = 0, lty = 2, col = "grey50") +
     geom_vline(xintercept = treatment_date, col = "red", lty = 2) +
     annotate("text", x = treatment_date + 7, y = Inf, vjust = 2,
              label = "Aiwanger\ninterview", col = "red", size = 3) +
     geom_vline(xintercept = as.Date("2021-11-11"), col = "blue", lty = 2) +
     annotate("text", x = as.Date("2021-11-11") + 7, y = Inf, vjust = 2,
              label = "Aiwanger\nvaccinated", col = "blue", size = 3) +
+    scale_x_date(date_labels = "%b %Y") +
     labs(
         title = "Synthetic Control: Effect of Aiwanger's Vaccination Refusal",
         subtitle = "Treated: Districts with >5% FW vote share | Donors: Districts with 0% FW",
@@ -255,8 +265,16 @@ synth_result_alt <- multisynth(
 cat("\n=== Robustness: FW > 2.5% threshold ===\n")
 print(summary(synth_result_alt))
 
-p_alt <- plot(synth_result_alt) +
+synth_att_alt <- summary(synth_result_alt)$att
+synth_att_alt$week <- sort(unique(synth_balanced_alt$week))[1:nrow(synth_att_alt)]
+
+p_alt <- ggplot(synth_att_alt, aes(x = week, y = Estimate)) +
+    geom_ribbon(aes(ymin = Estimate - 2 * Std.Error,
+                    ymax = Estimate + 2 * Std.Error), alpha = 0.2) +
+    geom_line() +
+    geom_hline(yintercept = 0, lty = 2, col = "grey50") +
     geom_vline(xintercept = treatment_date, col = "red", lty = 2) +
+    scale_x_date(date_labels = "%b %Y") +
     labs(
         title = "Robustness: FW > 2.5% threshold",
         y = "ATT (Vaccination rate per eligible voter)",
@@ -360,13 +378,21 @@ cat("\n=== Synthetic Control: Landshut vs. Synthetic Landshut ===\n")
 print(summary(synth_landshut))
 
 ## Plot observed vs synthetic trajectory
-p_landshut <- plot(synth_landshut) +
+lh_att <- summary(synth_landshut)$att
+lh_att$week <- sort(unique(lh_balanced$week))[1:nrow(lh_att)]
+
+p_landshut <- ggplot(lh_att, aes(x = week, y = Estimate)) +
+    geom_ribbon(aes(ymin = Estimate - 2 * Std.Error,
+                    ymax = Estimate + 2 * Std.Error), alpha = 0.2) +
+    geom_line() +
+    geom_hline(yintercept = 0, lty = 2, col = "grey50") +
     geom_vline(xintercept = treatment_date, col = "red", lty = 2) +
     annotate("text", x = treatment_date + 7, y = Inf, vjust = 2,
              label = "Aiwanger\ninterview", col = "red", size = 3) +
     geom_vline(xintercept = as.Date("2021-11-11"), col = "blue", lty = 2) +
     annotate("text", x = as.Date("2021-11-11") + 7, y = Inf, vjust = 2,
              label = "Aiwanger\nvaccinated", col = "blue", size = 3) +
+    scale_x_date(date_labels = "%b %Y") +
     labs(
         title = "Synthetic Control: Landshut (Aiwanger's District)",
         subtitle = "Donor pool: Other Bavarian districts",
