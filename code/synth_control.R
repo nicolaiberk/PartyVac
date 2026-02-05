@@ -121,7 +121,6 @@ synth_data <- panel %>%
 ## Find the week coverage of treated vs donor districts, then pick
 ## the threshold that retains the most treated units.
 district_counts <- synth_data %>%
-    left_join(district_fw %>% select(district_id, treat_group), by = "district_id") %>%
     group_by(district_id, treat_group) %>%
     summarise(n_weeks = n_distinct(week), .groups = "drop")
 
