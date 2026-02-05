@@ -117,14 +117,35 @@ synth_data <- panel %>%
     filter(treat_group %in% c("high_fw", "no_fw")) %>%
     arrange(district_id, week)
 
-## Balance the panel: keep districts present for >= 95% of weeks
-## (strict "all weeks" requirement can drop too many districts)
+## Balance the panel adaptively:
+## Find the week coverage of treated vs donor districts, then pick
+## the threshold that retains the most treated units.
 district_counts <- synth_data %>%
-    group_by(district_id) %>%
-    summarise(n_weeks = n_distinct(week))
+    left_join(district_fw %>% select(district_id, treat_group), by = "district_id") %>%
+    group_by(district_id, treat_group) %>%
+    summarise(n_weeks = n_distinct(week), .groups = "drop")
 
 max_weeks <- max(district_counts$n_weeks)
-week_threshold <- floor(max_weeks * 0.95)
+
+cat("\nWeek coverage by treatment group:\n")
+district_counts %>%
+    group_by(treat_group) %>%
+    summarise(
+        n = n(),
+        min_weeks = min(n_weeks),
+        median_weeks = median(n_weeks),
+        max_weeks = max(n_weeks)
+    ) %>%
+    print()
+
+## Use the median week count of treated districts as the threshold
+## so that at least half of treated units survive
+treated_weeks <- district_counts %>%
+    filter(treat_group == "high_fw") %>%
+    pull(n_weeks)
+
+week_threshold <- median(treated_weeks)
+cat(sprintf("\nUsing week threshold: %d (median of treated districts)\n", week_threshold))
 
 balanced_districts <- district_counts %>%
     filter(n_weeks >= week_threshold) %>%
@@ -141,13 +162,20 @@ common_weeks <- synth_data %>%
 synth_balanced <- synth_data %>%
     filter(district_id %in% balanced_districts, week %in% common_weeks)
 
+n_treated_bal <- sum(district_fw$treat_group == "high_fw" & district_fw$district_id %in% balanced_districts)
+n_donor_bal   <- sum(district_fw$treat_group == "no_fw" & district_fw$district_id %in% balanced_districts)
+
 cat(sprintf(
     "Balanced panel: %d districts x %d weeks (%d treated, %d donors)\n",
     n_distinct(synth_balanced$district_id),
-    max_weeks,
-    sum(district_fw$treat_group == "high_fw" & district_fw$district_id %in% balanced_districts),
-    sum(district_fw$treat_group == "no_fw" & district_fw$district_id %in% balanced_districts)
+    length(common_weeks),
+    n_treated_bal,
+    n_donor_bal
 ))
+
+if (n_treated_bal == 0) {
+    stop("No treated districts in balanced panel. Check data coverage for high-FW districts.")
+}
 
 ## Run augmented synthetic control
 ## Multi-treated unit version using multisynth
