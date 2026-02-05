@@ -102,11 +102,13 @@ cat(sprintf(
 panel <- panel %>%
     left_join(district_fw %>% select(district_id, treat_group), by = "district_id")
 
-## Binary treatment indicator
+## Time-varying treatment indicator:
+## multisynth expects treated=0 pre-treatment, treated=1 post-treatment
+## for treated units; always 0 for control units.
 panel <- panel %>%
     mutate(
-        treated = as.integer(treat_group == "high_fw"),
-        post    = as.integer(week >= treatment_date)
+        post    = as.integer(week >= treatment_date),
+        treated = as.integer(treat_group == "high_fw" & post == 1)
     )
 
 
@@ -176,6 +178,15 @@ if (n_treated_bal == 0) {
     stop("No treated districts in balanced panel. Check data coverage for high-FW districts.")
 }
 
+## Verify we have both pre- and post-treatment weeks
+n_pre  <- sum(common_weeks < treatment_date)
+n_post <- sum(common_weeks >= treatment_date)
+cat(sprintf("  Pre-treatment weeks: %d | Post-treatment weeks: %d\n", n_pre, n_post))
+
+if (n_pre < 5) {
+    stop("Fewer than 5 pre-treatment weeks in balanced panel. Cannot fit synthetic control.")
+}
+
 ## Run augmented synthetic control
 ## Multi-treated unit version using multisynth
 synth_result <- multisynth(
@@ -225,13 +236,13 @@ print(synth_summary)
 
 ## ---- 6. Robustness: Alternative treatment thresholds ----
 
-## Try FW > 2.5% as treatment
+## Try FW > 2.5% as treatment (time-varying)
 district_fw_alt <- district_fw %>%
-    mutate(treat_alt = as.integer(FW_share > 0.025))
+    mutate(is_treated_alt = as.integer(FW_share > 0.025))
 
 synth_balanced_alt <- synth_balanced %>%
-    left_join(district_fw_alt %>% select(district_id, treat_alt), by = "district_id") %>%
-    mutate(treated = treat_alt)
+    left_join(district_fw_alt %>% select(district_id, is_treated_alt), by = "district_id") %>%
+    mutate(treated = as.integer(is_treated_alt == 1 & post == 1))
 
 synth_result_alt <- multisynth(
     vac_rate ~ treated,
